@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Examen Psicocomercial</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#f9fafb; --card:#ffffff; --ink:#111827; --muted:#6b7280; --accent:#2563eb; --warn:#dc2626; }
+    body { font-family: system-ui, Arial, sans-serif; margin:0; background:var(--bg); color:var(--ink); }
+    header { padding:20px 16px; text-align:center; position:relative; }
+    header img { position:absolute; top:15px; right:20px; height:50px; }
+    h1 { margin:0 0 6px; font-size:1.4rem; }
+    h2 { margin:6px 0 0; font-weight:500; color:var(--muted); font-size:0.95rem; }
+    main { max-width:900px; margin:0 auto; padding:0 16px 48px; }
+    .card { background:var(--card); border-radius:14px; box-shadow:0 10px 25px rgba(0,0,0,.05); padding:18px; margin-bottom:16px; }
+    label { display:inline-block; margin-bottom:6px; font-weight:600; }
+    input[type="text"] { width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; font-size:1rem; }
+    .btn { display:inline-flex; align-items:center; gap:8px; border:0; background:var(--accent); color:#fff; padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:600; }
+    .btn-secondary { background:#111827; }
+    .btn-muted { background:#e5e7eb; color:#111827; }
+    .timer { text-align:center; font-weight:700; color:var(--warn); margin:8px 0 16px; font-size:1.05rem; }
+    .section-title { font-size:1rem; margin:6px 0 12px; color:var(--muted); font-weight:700; }
+    .question { padding:14px; border:1px solid #eef2f7; border-radius:12px; margin-bottom:12px; background:#fff; }
+    .option { display:flex; gap:10px; margin:6px 0; }
+    .result { background:#eef6ff; border:1px solid #dbeafe; border-radius:12px; padding:16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Examen Psicocomercial</h1>
+    <h2>Tiempo límite: 25 minutos • 1 intento por clave</h2>
+    <img src="Logo Propar.jpg" alt="Logo Propar Labs" />
+  </header>
+
+  <main>
+    <div class="card">
+      <label for="candidateCode">Código personal del candidato</label>
+      <input id="candidateCode" type="text" placeholder="Ingresa tu clave" />
+      <button id="startBtn" class="btn" style="margin-top:10px;">Iniciar examen</button>
+      <div id="timer" class="timer">Tiempo restante: 25:00</div>
+    </div>
+
+    <form id="examForm" style="display:none;"></form>
+    <button id="submitBtn" type="button" class="btn btn-secondary" style="display:none;">Enviar examen</button>
+
+    <div id="resultWrap" class="card" style="display:none;">
+      <div class="result" id="result"></div>
+      <button id="downloadBtn" class="btn" style="margin-top:10px;">Descargar resultado (.txt)</button>
+    </div>
+  </main>
+
+  <script>
+   /* =============================
+   Banco de preguntas (40 total)
+   Parte I: 1-25 y 31-40 = competencia comercial
+   Parte II: 26-30 = trampas de consistencia
+   ============================= */
+
+const questions = [
+  {q:"1. Un cliente dice que su producto es caro.", opts:["a) Cambio el tema","b) Ofrezco descuento","c) Explico el valor comparado con el beneficio","d) Digo que revisaré opciones"]},
+  {q:"2. Un cliente compara su producto con otro proveedor.", opts:["a) Le digo que el nuestro es mejor","b) Pregunto qué aspectos está comparando","c) Analizo sus criterios y destaco diferenciadores","d) Bajo el precio"]},
+  {q:"3. El cliente dice que necesita pensarlo.", opts:["a) Lo doy por perdido","b) Acordamos seguimiento","c) Pregunto qué duda específica tiene","d) Insisto en cerrar hoy"]},
+  {q:"4. Un cliente menciona una objeción que no sabe responder.", opts:["a) Cambio el tema","b) Digo que revisaré la información","c) Investigo la objeción para entenderla mejor","d) Minimizo la pregunta"]},
+  {q:"5. El cliente dice que no tiene presupuesto.", opts:["a) Me retiro","b) Pregunto sobre prioridades de inversión","c) Analizo retorno y valor del producto","d) Insisto en el precio"]},
+  {q:"6. En una reunión el cliente habla mucho de su negocio.", opts:["a)Lo interrumpo","b)Espero para hablar del producto","c) Escucho para detectar necesidades","d) Intento cerrar rápido"]},
+  {q:"7. El cliente describe un problema en su empresa.", opts:["a) Paso a explicar el producto","b) Hago algunas preguntas","c) Profundizo para entender la raíz del problema","d) Cambio el enfoque"]},
+  {q:"8. Un cliente hace muchas preguntas.", opts:["a) Me incomoda","b) Respondo lo necesario","c) Lo veo como oportunidad para entender mejor","d) Intento cerrar rápido"]},
+  {q:"9. Un cliente duda entre varias opciones.", opts:["a) Le digo cuál comprar","b) Le explico las diferencias","c) Lo ayudo a comparar según sus necesidades","d) Dejo que decida solo"]},
+  {q:"10. Usted como vendedor debe explicar algo complejo.", opts:["a) Uso términos técnicos","b) Envío un documento","c) Uso ejemplos simples","d) Lo resumo rápido"]},
+  {q:"11. Después de varios rechazos seguidos usted:", opts:["a) Deja de prospectar","b) Sigue intentando","c) Analiza qué puede mejorar","d) Se queja con colegas"]},
+  {q:"12. Un cliente importante compra a la competencia.", opts:["a) Culpa al precio","b) Intenta convencerlo nuevamente","c) Analiza qué falló","d) Se frustra"]},
+  {q:"13. Un cliente cancela una reunión.", opts:["a) Lo descarta","b) Reagenda","c) Reagenda e intenta mantener interés","d) Se molesta"]},
+  {q:"14. Un prospecto no responde mensajes.", opts:["a) Espera respuesta","b) Cambia canal de contacto","c) Ajusta estrategia de acercamiento","d) Envía muchos mensajes"]},
+  {q:"15. Tiene un día con muchas negativas.", opts:["a) Pierde motivación","b) Continúa con su agenda","c) Ajusta enfoque y sigue prospectando","d) Evita llamadas"]},
+  {q:"16. Usted tiene metas altas y poco tiempo.", opts:["a) Espera oportunidades","b) Contacta clientes","c) Prioriza prospectos con mayor probabilidad","d) Solicita bajar meta"]},
+  {q:"17. Un cliente parece muy interesado.", opts:["a) Espera decisión","b) Intenta cerrar rápido","c) Profundiza necesidades antes de cerrar","d) Envía información"]},
+  {q:"18. Un cliente satisfecho comenta que recomendaría el servicio.", opts:["a) Agradece","b) Pide referencias","c) Solicita recomendaciones específicas","d) Cambia de tema"]},
+  {q:"19. Un cliente tarda mucho en decidir.", opts:["a) Lo deja","b) Hace seguimiento ocasional","c) Diseña seguimiento estructurado","d) Presiona cierre"]},
+  {q:"20. Tiene muchas oportunidades abiertas.", opts:["a) Improvisa seguimiento","b) Atiende según urgencia","c) Prioriza estratégicamente","d) Cancela algunas"]},
+  {q:"21. Un cliente eleva la voz.", opts:[
+    "a) Termina conversación",
+    "b) Defiende su postura",
+    "c) Mantiene calma y escucha",
+    "d) Ignora comentario"
+  ]},
+  {q:"22. Un cliente duda de usted.", opts:[
+    "a) Cambia tema",
+    "b) Presenta casos de éxito",
+    "c) Construye confianza con evidencia",
+    "d) Intenta convencer"
+  ]},
+  {q:"23. Usted se equivoca frente a un cliente.", opts:[
+    "a) Ignora error",
+    "b) Corrige",
+    "c) Reconoce y corrige con claridad",
+    "d) Se justifica"
+  ]},
+  {q:"24. Un cliente hace comentarios negativos.", opts:[
+    "a) Finaliza conversación",
+    "b) Escucha",
+    "c) Investiga causa",
+    "d) Discute"
+  ]},
+  {q:"25. Un cliente está molesto.", opts:[
+    "a) Evita conversación",
+    "b) Intenta calmarlo",
+    "c) Busca comprender el problema",
+    "d) Defiende postura"
+  ]},
+  {q:"26. Para control de calidad seleccione la opción B.", opts:[
+    "a) A",
+    "b) B",
+    "c) C",
+    "d) D"
+  ]},
+  {q:"27. En ventas:", opts:[
+    "a) Nunca cometo errores",
+    "b) Rara vez cometo errores",
+    "c) A veces me equivoco y lo corrijo",
+    "d) Cometo errores frecuentemente"
+  ]},
+  {q:"28. Después de varios rechazos:", opts:[
+    "a) Prefiero evitar nuevas llamadas",
+    "b) Intento otras oportunidades",
+    "c) Analizo qué mejorar",
+    "d) Espero mejores prospectos"
+  ]},
+  {q:"29. Cuando un cliente duda:", opts:[
+    "a) Lo dejo decidir",
+    "b) Le doy tiempo",
+    "c) EBusco entender su duda real",
+    "d) Intento cerrar"
+  ]},
+  {q:"30. Seleccione la opción D.", opts:[
+    "a) A",
+    "b) B",
+    "c) C",
+    "d) D"
+  ]},
+  {q:"31. Un cliente dice que trabajará con otro proveedor porque lleva años con él.", opts:[
+    "a) Acepto su decisión",
+    "b) Pregunto qué valora de ese proveedor",
+    "c) Analizo qué valor diferencial podría considerar",
+    "d) Intento convencerlo rápidamente"
+  ]},
+  {q:"32. Un cliente está interesado pero sigue comparando opciones.", opts:[
+    "a) Le dejo analizar",
+    "b) Recalco algunas ventajas",
+    "c) Exploro qué criterios son decisivos para él",
+    "d) Bajo el precio"
+  ]},
+  {q:"33. El cliente pide un descuento grande para cerrar.", opts:[
+    "a) Lo rechazo inmediatamente",
+    "b) Negocio una reducción menor",
+    "c) Busco cerrar manteniendo valor para ambas partes",
+    "d) Acepto el descuento"
+  ]},
+  {q:"34. El cliente dice que debe consultarlo con su jefe.", opts:[
+    "a) Espero su respuesta",
+    "b) Pregunto cuándo tendrá respuesta",
+    "c) Propongo participar en la conversación con el decisor",
+    "d) Intento convencerlo de decidir ahora"
+  ]},
+  {q:"35. El cliente parece interesado pero no toma decisión.", opts:[
+    "a) Lo dejo decidir",
+    "b) Le recuerdo los beneficios",
+    "c) Planteo próximos pasos para avanzar",
+    "d) Intento cerrar de inmediato"
+  ]},
+  {q:"36. Un cliente cambia constantemente los requisitos.", opts:[
+    "a) Me frustra",
+    "b) Intento adaptarme",
+    "c) Redefino necesidades y confirmo expectativas",
+    "d) Intento cerrar rápido"
+  ]},
+  {q:"37. Tiene que presentar el producto a un cliente muy técnico.", opts:[
+    "a) Uso la misma presentación de siempre",
+    "b) Explico algunos detalles técnicos",
+    "c) Ajusto el mensaje según su nivel de conocimiento",
+    "d) Intento simplificar demasiado"
+  ]},
+  {q:"38. Un cliente interrumpe mucho durante la reunión.", opts:[
+    "a) Me incomoda",
+    "b) Intento retomar la agenda",
+    "c) Aprovecho las interrupciones para entender mejor",
+    "d) Sigo con la presentación"
+  ]},
+  {q:"39. Un cliente dice que quiere pensarlo unos días.", opts:[
+    "a) Lo dejo decidir",
+    "b) Le pregunto cuándo hablar nuevamente",
+    "c) Acordamos una fecha específica de seguimiento",
+    "d) Insisto en cerrar hoy"
+  ]},
+  {q:"40. Al final de una reunión el cliente dice que le parece interesante.", opts:[
+    "a) Le agradezco",
+    "b) Le envío información",
+    "c) Pregunto qué necesitaría para avanzar",
+    "d) Espero que me contacte"
+  ]}
+];
+    const el = {
+      code: document.getElementById('candidateCode'),
+      start: document.getElementById('startBtn'),
+      timer: document.getElementById('timer'),
+      form: document.getElementById('examForm'),
+      submit: document.getElementById('submitBtn'),
+      resultWrap: document.getElementById('resultWrap'),
+      result: document.getElementById('result'),
+      download: document.getElementById('downloadBtn'),
+    };
+
+    // Render
+    function renderExam(){
+      el.form.innerHTML="";
+      questions.forEach((item,i)=>{
+        const div=document.createElement('div');
+        div.className="question";
+        div.innerHTML=`<p>${item.q}</p>`;
+        item.opts.forEach(opt=>{
+          const v=opt.charAt(0);
+          div.innerHTML+=`<label class="option"><input type="radio" name="q${i}" value="${v}"/> ${opt}</label>`;
+        });
+        el.form.appendChild(div);
+      });
+    }
+
+    // Timer
+    const TOTAL=25*60; let left=TOTAL; let tick;
+    function startTimer(){
+      el.timer.textContent=`Tiempo restante: ${fmt(left)}`;
+      tick=setInterval(()=>{
+        left--; el.timer.textContent=`Tiempo restante: ${fmt(left)}`;
+        if(left<=0){ clearInterval(tick); submitExam(true); }
+      },1000);
+    }
+    function fmt(s){const m=Math.floor(s/60),sec=s%60;return `${m}:${sec<10?"0":""}${sec}`;}
+
+    // Un solo intento
+    function used(code){return localStorage.getItem("exam_"+code)!=null;}
+    function save(code,data){localStorage.setItem("exam_"+code,JSON.stringify(data));}
+
+    el.start.onclick=()=>{
+      const code=el.code.value.trim();
+      if(!code){alert("Ingrese su código");return;}
+      if(used(code)){alert("Ya se contestó con esta clave en este navegador");return;}
+      renderExam();
+      el.form.style.display="block"; el.submit.style.display="inline-block";
+      startTimer();
+    };
+
+    el.submit.onclick=()=>submitExam(false);
+
+    function submitExam(auto){
+      clearInterval(tick);
+      const code=el.code.value.trim();
+      const answers=[];
+      for(let i=0;i<questions.length;i++){
+        const sel=document.querySelector(`input[name="q${i}"]:checked`);
+        answers.push(sel?sel.value:"");
+      }
+      const payload={code,fecha:new Date().toLocaleString(),respuestas:answers};
+      save(code,payload);
+
+      el.resultWrap.style.display="block";
+      el.result.innerHTML=`<h3>Examen enviado</h3>
+        <p><b>Candidato:</b> ${code}</p>
+        <p>Fecha: ${payload.fecha}</p>
+        <p>Respuestas registradas: ${answers.filter(x=>x).length} de ${questions.length}</p>`;
+
+      el.download.onclick=()=>{
+        const txt=[
+          "Resultado Examen Psicocomercial",
+          `Candidato: ${payload.code}`,
+          `Fecha: ${payload.fecha}`,
+          `Respuestas (a-d, vacío si no contestó):`,
+          payload.respuestas.join(",")
+        ].join("\n");
+        const blob=new Blob([txt],{type:"text/plain"});
+        const a=document.createElement("a");
+        a.href=URL.createObjectURL(blob);
+        a.download=`resultado_${payload.code||"sin_codigo"}.txt`;
+        a.click();
+      };
+    }
+  </script>
+</body>
+</html>
